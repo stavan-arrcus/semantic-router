@@ -1,0 +1,88 @@
+# vLLM Semantic Router - Minimal Node A Config (Gold)
+version: v0.1
+
+listeners:
+  - name: "http-8888"
+    address: "0.0.0.0"
+    port: 8888
+    timeout: "300s"
+
+# Disable hungry default plugins
+semantic_cache:
+  enabled: false
+prompt_guard:
+  enabled: false
+feedback_detector:
+  enabled: false
+hallucination_mitigation:
+  enabled: false
+looper:
+  enabled: false
+
+signals:
+  keywords:
+    - name: "math_keywords"
+      operator: "OR"
+      keywords: ["calculate", "equation", "integral", "sum", "math"]
+      case_sensitive: false
+    - name: "code_keywords"
+      operator: "OR"
+      keywords: ["function", "class", "python", "code", "debug"]
+      case_sensitive: false
+
+  # Embeddings disabled so no HF gated model (e.g. embeddinggemma) is required.
+
+# Required by router validation; we route by keywords only.
+categories:
+  - name: "math"
+    description: "Math queries"
+    mmlu_categories: ["math"]
+  - name: "computer_science"
+    description: "Code and CS queries"
+    mmlu_categories: ["computer_science"]
+
+decisions:
+  - name: "math_route"
+    description: "Route math queries to Qwen"
+    priority: 100
+    rules:
+      operator: "OR"
+      conditions:
+        - type: "keyword"
+          name: "math_keywords"
+    modelRefs:
+      - model: "local/qwen"
+        use_reasoning: true
+
+  - name: "code_route"
+    description: "Route code queries to TinyLlama (keyword-only)"
+    priority: 100
+    rules:
+      operator: "OR"
+      conditions:
+        - type: "keyword"
+          name: "code_keywords"
+    modelRefs:
+      - model: "local/tinyllama"
+        use_reasoning: false
+
+providers:
+  models:
+    - name: "local/qwen"
+      reasoning_family: "qwen3"
+      param_size: "1.5b"
+      endpoints:
+        - name: "qwen_backend"
+          weight: 1
+          endpoint: "qwen-a:8000"
+          protocol: "http"
+      access_key: "dummy"
+    - name: "local/tinyllama"
+      param_size: "1.1b"
+      endpoints:
+        - name: "tinyllama_backend"
+          weight: 1
+          endpoint: "tinyllama-a:8001"
+          protocol: "http"
+      access_key: "dummy"
+  default_model: "local/tinyllama"
