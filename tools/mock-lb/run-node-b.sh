@@ -29,9 +29,9 @@ echo "Building mock-lb..."
 docker build -t mock-lb -q .
 
 echo "Starting Node B backends (mock Qwen, TinyLlama, default target)..."
-docker run --rm --name qwen-b       -d --network envoy-net mock-lb -target -target-port 8002
-docker run --rm --name tinyllama-b  -d --network envoy-net mock-lb -target -target-port 8003
-docker run --rm --name mock-target  -d --network envoy-net mock-lb -target -target-port 8888
+docker run --rm --name qwen-b       -d --network envoy-net mock-lb -target -target-port 8002 -target-name qwen-b
+docker run --rm --name tinyllama-b  -d --network envoy-net mock-lb -target -target-port 8003 -target-name tinyllama-b
+docker run --rm --name mock-target  -d --network envoy-net mock-lb -target -target-port 8888 -target-name default-b
 
 echo "Starting vLLM-SR (ExtProc 1)..."
 docker run --rm --name vllm-sr-b -d \
