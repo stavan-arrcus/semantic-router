@@ -88,54 +88,44 @@ func (r *OpenAIRouter) handleResponseHeaders(v *ext_proc.ProcessingRequest_Respo
 	if isSuccessful && !ctx.VSRCacheHit && ctx != nil {
 		var setHeaders []*core.HeaderValueOption
 
-		// Add x-vsr-selected-category header (from domain classification)
+		// Determine existing headers from upstream to avoid overwriting
+		upstreamHeaders := make(map[string]bool)
+		if v != nil && v.ResponseHeaders != nil && v.ResponseHeaders.Headers != nil {
+			for _, h := range v.ResponseHeaders.Headers.Headers {
+				upstreamHeaders[strings.ToLower(h.Key)] = true
+			}
+		}
+
+		// Add VSR tracking headers if they are not already set by upstream
+		addHeaderIfNotExists := func(key string, value string) {
+			if !upstreamHeaders[strings.ToLower(key)] {
+				setHeaders = append(setHeaders, &core.HeaderValueOption{
+					Header: &core.HeaderValue{
+						Key:      key,
+						RawValue: []byte(value),
+					},
+				})
+			}
+		}
+
+		// Add tracking headers
 		if ctx.VSRSelectedCategory != "" {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRSelectedCategory,
-					RawValue: []byte(ctx.VSRSelectedCategory),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRSelectedCategory, ctx.VSRSelectedCategory)
 		}
-
-		// Add x-vsr-selected-decision header (from decision evaluation)
 		if ctx.VSRSelectedDecisionName != "" {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRSelectedDecision,
-					RawValue: []byte(ctx.VSRSelectedDecisionName),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRSelectedDecision, ctx.VSRSelectedDecisionName)
 		}
-
-		// Add x-vsr-matched-keywords header (from keyword classification)
 		if len(ctx.VSRMatchedKeywords) > 0 {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRMatchedKeywords,
-					RawValue: []byte(strings.Join(ctx.VSRMatchedKeywords, ",")),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRMatchedKeywords, strings.Join(ctx.VSRMatchedKeywords, ","))
 		}
-
-		// Add x-vsr-selected-reasoning header
 		if ctx.VSRReasoningMode != "" {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRSelectedReasoning,
-					RawValue: []byte(ctx.VSRReasoningMode),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRSelectedReasoning, ctx.VSRReasoningMode)
 		}
-
-		// Add x-vsr-selected-model header
 		if ctx.VSRSelectedModel != "" {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRSelectedModel,
-					RawValue: []byte(ctx.VSRSelectedModel),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRSelectedModel, ctx.VSRSelectedModel)
+		}
+		if ctx.VSRRerouted {
+			addHeaderIfNotExists(headers.VSRRerouted, "true")
 		}
 
 		// Add x-vsr-injected-system-prompt header
@@ -143,66 +133,23 @@ func (r *OpenAIRouter) handleResponseHeaders(v *ext_proc.ProcessingRequest_Respo
 		if ctx.VSRInjectedSystemPrompt {
 			injectedValue = "true"
 		}
-		setHeaders = append(setHeaders, &core.HeaderValueOption{
-			Header: &core.HeaderValue{
-				Key:      headers.VSRInjectedSystemPrompt,
-				RawValue: []byte(injectedValue),
-			},
-		})
+		addHeaderIfNotExists(headers.VSRInjectedSystemPrompt, injectedValue)
 
-		// Add signal tracking headers
-		if len(ctx.VSRMatchedKeywords) > 0 {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRMatchedKeywords,
-					RawValue: []byte(strings.Join(ctx.VSRMatchedKeywords, ",")),
-				},
-			})
-		}
-
+		// Add additional signal tracking headers
 		if len(ctx.VSRMatchedEmbeddings) > 0 {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRMatchedEmbeddings,
-					RawValue: []byte(strings.Join(ctx.VSRMatchedEmbeddings, ",")),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRMatchedEmbeddings, strings.Join(ctx.VSRMatchedEmbeddings, ","))
 		}
-
 		if len(ctx.VSRMatchedDomains) > 0 {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRMatchedDomains,
-					RawValue: []byte(strings.Join(ctx.VSRMatchedDomains, ",")),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRMatchedDomains, strings.Join(ctx.VSRMatchedDomains, ","))
 		}
-
 		if len(ctx.VSRMatchedFactCheck) > 0 {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRMatchedFactCheck,
-					RawValue: []byte(strings.Join(ctx.VSRMatchedFactCheck, ",")),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRMatchedFactCheck, strings.Join(ctx.VSRMatchedFactCheck, ","))
 		}
-
 		if len(ctx.VSRMatchedUserFeedback) > 0 {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRMatchedUserFeedback,
-					RawValue: []byte(strings.Join(ctx.VSRMatchedUserFeedback, ",")),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRMatchedUserFeedback, strings.Join(ctx.VSRMatchedUserFeedback, ","))
 		}
-
 		if len(ctx.VSRMatchedPreference) > 0 {
-			setHeaders = append(setHeaders, &core.HeaderValueOption{
-				Header: &core.HeaderValue{
-					Key:      headers.VSRMatchedPreference,
-					RawValue: []byte(strings.Join(ctx.VSRMatchedPreference, ",")),
-				},
-			})
+			addHeaderIfNotExists(headers.VSRMatchedPreference, strings.Join(ctx.VSRMatchedPreference, ","))
 		}
 
 		// Attach router replay identifier when available

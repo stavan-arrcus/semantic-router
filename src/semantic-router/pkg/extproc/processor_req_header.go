@@ -104,6 +104,10 @@ type RequestContext struct {
 	// Looper context
 	LooperRequest   bool // True if this request is from looper (internal request, skip plugins)
 	LooperIteration int  // The iteration number if this is a looper request
+
+	// Incoming routing headers from upstream proxies
+	IncomingSelectedModel string // The model selected by an upstream proxy (e.g., Mock LB)
+	VSRRerouted           bool   // True if the request was rerouted by an upstream proxy
 }
 
 // handleRequestHeaders processes the request headers
@@ -150,6 +154,12 @@ func (r *OpenAIRouter) handleRequestHeaders(v *ext_proc.ProcessingRequest_Reques
 		if h.Key == headers.VSRLooperRequest && headerValue == "true" {
 			ctx.LooperRequest = true
 			logging.Infof("Detected looper internal request, will skip plugin processing")
+		}
+
+		// Check for incoming selected model from upstream proxy
+		if strings.ToLower(h.Key) == headers.SelectedModel {
+			ctx.IncomingSelectedModel = headerValue
+			logging.Infof("Detected incoming selected model from upstream: %s", headerValue)
 		}
 	}
 

@@ -32,14 +32,14 @@ signals:
 
   # Embeddings disabled so no HF gated model (e.g. embeddinggemma) is required.
 
-# Required by router validation; we route by keywords only.
-categories:
-  - name: "math"
-    description: "Math queries"
-    mmlu_categories: ["math"]
-  - name: "computer_science"
-    description: "Code and CS queries"
-    mmlu_categories: ["computer_science"]
+  # Domains are required so the merger produces categories (router validation).
+  domains:
+    - name: "math"
+      description: "Math queries"
+      mmlu_categories: ["math"]
+    - name: "computer_science"
+      description: "Code and CS queries"
+      mmlu_categories: ["computer_science"]
 
 decisions:
   - name: "math_route"

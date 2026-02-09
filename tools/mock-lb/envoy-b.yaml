@@ -1,3 +1,5 @@
+# Envoy B - Node B (VM). PEER_IP is replaced by run-node-b.sh (sed) with Mac IP.
+# Usage: export PEER_IP=192.168.64.1 && ./run-node-b.sh
 static_resources:
   listeners:
     - name: listener_b
@@ -19,17 +21,17 @@ static_resources:
                     - name: local_service
                       domains: ["*"]
                       routes:
-                        # 1. Check for Reroute Header -> Send to Peer
+                        # 1. Reroute to peer (Mac) when Mock-LB sets x-reroute-target (e.g. >3 queries)
                         - match:
                             prefix: "/"
                             headers:
                               - name: "x-reroute-target"
                                 exact_match: "peer"
-                          route: 
+                          route:
                             cluster: peer_cluster
                           request_headers_to_remove: ["x-reroute-target"]
 
-                        # 2. Semantic Routing (Model Selection)
+                        # 2. Semantic routing (vLLM-SR sets x-selected-model)
                         - match:
                             prefix: "/"
                             headers:
@@ -43,12 +45,12 @@ static_resources:
                               - name: "x-selected-model"
                                 exact_match: "local/tinyllama"
                           route: { cluster: local_tinyllama }
-                        
-                        # 3. Default -> Fallback to Target (or Qwen)
+
+                        # 3. Default -> mock target
                         - match: { prefix: "/" }
                           route: { cluster: target_cluster }
                 http_filters:
-                  # --- vLLM-SR (Semantic Router) ---
+                  # ExtProc 1: vLLM-SR (semantic router)
                   - name: envoy.filters.http.ext_proc
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
@@ -59,12 +61,11 @@ static_resources:
                       message_timeout: 300s
                       processing_mode:
                         request_header_mode: SEND
-                        request_body_mode: BUFFERED # Needs body to make decision
+                        request_body_mode: BUFFERED
                         response_header_mode: SKIP
                         response_body_mode: NONE
 
-                  # --- Load Balancer ExtProc ---
-                  # It tracks concurrency and injects x-reroute-target if busy
+                  # ExtProc 2: Mock-LB (concurrency; sets x-reroute-target when >3)
                   - name: envoy.filters.http.ext_proc
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
@@ -79,13 +80,11 @@ static_resources:
                         response_header_mode: DEFAULT
                         response_body_mode: NONE
 
-                  # --- Router ---
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-    # Cluster for vLLM Semantic Router
     - name: vllm_sr_cluster
       type: STRICT_DNS
       lb_policy: ROUND_ROBIN
@@ -98,7 +97,6 @@ static_resources:
                   address:
                     socket_address: { address: vllm-sr-b, port_value: 50051 }
 
-    # Cluster for Qwen (Port 8002)
     - name: local_qwen
       type: STRICT_DNS
       lb_policy: ROUND_ROBIN
@@ -110,7 +108,6 @@ static_resources:
                   address:
                     socket_address: { address: qwen-b, port_value: 8002 }
 
-    # Cluster for TinyLlama (Port 8003)
     - name: local_tinyllama
       type: STRICT_DNS
       lb_policy: ROUND_ROBIN
@@ -122,7 +119,6 @@ static_resources:
                   address:
                     socket_address: { address: tinyllama-b, port_value: 8003 }
 
-    # Cluster for our Mock Load Balancer (Port 9001 for B)
     - name: mock_lb_cluster
       type: STRICT_DNS
       lb_policy: ROUND_ROBIN
@@ -135,21 +131,19 @@ static_resources:
               - endpoint:
                   address:
                     socket_address: { address: extproc-b, port_value: 9001 }
- 
-    # Cluster for the Peer Envoy (Port 10000 for A)
+
+    # Peer = Node A (Mac). PEER_IP substituted at startup (e.g. 192.168.64.1).
     - name: peer_cluster
-      type: STRICT_DNS
+      type: STATIC
       lb_policy: ROUND_ROBIN
-      dns_lookup_family: V4_ONLY
       load_assignment:
         cluster_name: peer_cluster
         endpoints:
           - lb_endpoints:
               - endpoint:
                   address:
-                    socket_address: { address: envoy-a, port_value: 10000 }
+                    socket_address: { address: 192.168.64.1, port_value: 10000 }
 
-    # Cluster for the actual LLM provider / Mock Target (Port 8888)
     - name: target_cluster
       type: STRICT_DNS
       lb_policy: ROUND_ROBIN

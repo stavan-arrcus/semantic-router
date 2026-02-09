@@ -50,6 +50,10 @@ const (
 	// Value: "true"
 	VSRCacheHit = "x-vsr-cache-hit"
 
+	// VSRRerouted indicates that the request was rerouted by a proxy or previous filter.
+	// Value: "true"
+	VSRRerouted = "x-vsr-rerouted"
+
 	// RouterReplayID carries the identifier for a captured replay record.
 	// Value: opaque replay token
 	RouterReplayID = "x-vsr-replay-id"

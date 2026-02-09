@@ -67,6 +67,12 @@ func (r *OpenAIRouter) handleRequestBody(v *ext_proc.ProcessingRequest_RequestBo
 		return nil, status.Errorf(codes.InvalidArgument, "invalid request body: %v", err)
 	}
 
+	// If an upstream proxy already selected a model, respect it
+	if ctx.IncomingSelectedModel != "" {
+		logging.Infof("Overriding request model with incoming selected model from proxy: %s (was %s)", ctx.IncomingSelectedModel, openAIRequest.Model)
+		openAIRequest.Model = ctx.IncomingSelectedModel
+	}
+
 	// Store the original model
 	originalModel := openAIRequest.Model
 
@@ -104,6 +110,13 @@ func (r *OpenAIRouter) handleRequestBody(v *ext_proc.ProcessingRequest_RequestBo
 	// Use decision-based routing if decisions are configured, otherwise fall back to category-based
 	// This also evaluates fact-check signal as part of the signal evaluation
 	decisionName, classificationConfidence, reasoningDecision, selectedModel := r.performDecisionEvaluation(originalModel, userContent, nonUserMessages, ctx)
+
+	// If an upstream proxy already selected a model, respect it for the final selection
+	if ctx.IncomingSelectedModel != "" {
+		logging.Infof("Overriding classification result %s with incoming selected model from proxy: %s", selectedModel, ctx.IncomingSelectedModel)
+		selectedModel = ctx.IncomingSelectedModel
+		ctx.VSRRerouted = true
+	}
 
 	// Perform security checks with decision-specific settings
 	if response, shouldReturn := r.performJailbreaks(ctx, userContent, nonUserMessages, decisionName); shouldReturn {
