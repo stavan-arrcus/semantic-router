@@ -1,4 +1,5 @@
-# vLLM Semantic Router - Minimal Node B Config (Gold)
+# vLLM Semantic Router - Lightweight Node B Config
+# Explicitly empty model registry - prevents all 11 default models from downloading
 version: v0.1
 
 listeners:
@@ -7,7 +8,10 @@ listeners:
     port: 8888
     timeout: "300s"
 
-# Disable hungry default plugins
+# Explicitly empty registry - prevents vLLM-SR from downloading or loading any ML models
+mom_registry: {}
+
+# Disable all model-dependent plugins
 semantic_cache:
   enabled: false
 prompt_guard:
