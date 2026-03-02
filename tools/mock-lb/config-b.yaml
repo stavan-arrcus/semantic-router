@@ -1,4 +1,4 @@
-# vLLM Semantic Router - Minimal Node B Config (Gold)
+# vLLM Semantic Router - Optimal Node B Config
 version: v0.1
 
 listeners:
@@ -7,9 +7,19 @@ listeners:
     port: 8888
     timeout: "300s"
 
-# Disable hungry default plugins
+# Selective registry with only 2 BERT models (Embedding + Domain)
+# This keeps RAM usage ~1GB instead of 6GB.
+mom_registry:
+  "models/mom-embedding-light": "sentence-transformers/all-MiniLM-L12-v2"
+  "models/mom-domain-classifier": "LLM-Semantic-Router/lora_intent_classifier_bert-base-uncased_model"
+
+# Enable core semantic features
 semantic_cache:
-  enabled: false
+  enabled: true
+  embedding_model: "bert" # Uses mom-embedding-light
+  similarity_threshold: 0.82
+
+# Keep safety/PII/hallucination disabled to save RAM
 prompt_guard:
   enabled: false
 feedback_detector:
@@ -30,9 +40,7 @@ signals:
       keywords: ["function", "class", "python", "code", "debug"]
       case_sensitive: false
 
-  # Embeddings disabled so no HF gated model (e.g. embeddinggemma) is required.
-
-  # Domains are required so the merger produces categories (router validation).
+  # Domain signals trigger the mom-domain-classifier BERT model
   domains:
     - name: "math"
       description: "Math queries"
@@ -74,7 +82,7 @@ providers:
       endpoints:
         - name: "qwen_backend"
           weight: 1
-          endpoint: "qwen-b:8002"
+          endpoint: "host.docker.internal:8002" # Updated to actual target
           protocol: "http"
       access_key: "dummy"
     - name: "local/tinyllama"
@@ -82,7 +90,7 @@ providers:
       endpoints:
         - name: "tinyllama_backend"
           weight: 1
-          endpoint: "tinyllama-b:8003"
+          endpoint: "host.docker.internal:8003" # Updated to actual target
           protocol: "http"
       access_key: "dummy"
   default_model: "local/tinyllama"
