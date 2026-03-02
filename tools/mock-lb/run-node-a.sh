@@ -33,6 +33,12 @@ docker build -t mock-lb -q .
 echo "Starting Node A default target..."
 docker run --rm --name mock-target  -d --network envoy-net mock-lb -target -target-port 8888 -target-name default-a
 
+echo "Starting Qwen Mock Target..."
+docker run --rm --name qwen-a -d --network envoy-net mock-lb -target -target-port 8000 -target-name qwen-a
+
+echo "Starting TinyLlama Mock Target..."
+docker run --rm --name tinyllama-a -d --network envoy-net mock-lb -target -target-port 8001 -target-name tinyllama-a
+
 echo "Starting vLLM-SR (ExtProc 1)..."
 docker run --rm --name vllm-sr-a -d \
   --network envoy-net \

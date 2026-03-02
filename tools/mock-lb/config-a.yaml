@@ -82,7 +82,7 @@ providers:
       endpoints:
         - name: "qwen_backend"
           weight: 1
-          endpoint: "host.docker.internal:8000" # Updated to actual target
+          endpoint: "qwen-a:8000" # Updated to internal container
           protocol: "http"
       access_key: "dummy"
     - name: "local/tinyllama"
@@ -90,7 +90,7 @@ providers:
       endpoints:
         - name: "tinyllama_backend"
           weight: 1
-          endpoint: "host.docker.internal:8001" # Updated to actual target
+          endpoint: "tinyllama-a:8001" # Updated to internal container
           protocol: "http"
       access_key: "dummy"
   default_model: "local/tinyllama"
