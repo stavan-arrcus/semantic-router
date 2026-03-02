@@ -69,6 +69,10 @@ class Signals(BaseModel):
     fact_check: Optional[List[FactCheck]] = []
     user_feedbacks: Optional[List[UserFeedback]] = []
     preferences: Optional[List[Preference]] = []
+    semantic_cache: Optional[Dict[str, Any]] = None
+    feedback_detector: Optional[Dict[str, Any]] = None
+    hallucination_mitigation: Optional[Dict[str, Any]] = None
+    prompt_guard: Optional[Dict[str, Any]] = None
 
 
 class Condition(BaseModel):
@@ -241,6 +245,7 @@ class UserConfig(BaseModel):
     signals: Optional[Signals] = None
     decisions: List[Decision]
     providers: Providers
+    mom_registry: Optional[Dict[str, str]] = None
 
     class Config:
         populate_by_name = True
