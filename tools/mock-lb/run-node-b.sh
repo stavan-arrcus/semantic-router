@@ -28,14 +28,13 @@ docker network create envoy-net 2>/dev/null || true
 echo "Building mock-lb..."
 docker build -t mock-lb -q .
 
-echo "Starting Node B backends (mock Qwen, TinyLlama, default target)..."
-docker run --rm --name qwen-b       -d --network envoy-net mock-lb -target -target-port 8002 -target-name qwen-b
-docker run --rm --name tinyllama-b  -d --network envoy-net mock-lb -target -target-port 8003 -target-name tinyllama-b
+echo "Starting Node B default target..."
 docker run --rm --name mock-target  -d --network envoy-net mock-lb -target -target-port 8888 -target-name default-b
 
 echo "Starting vLLM-SR (ExtProc 1)..."
 docker run --rm --name vllm-sr-b -d \
   --network envoy-net \
+  --add-host=host.docker.internal:host-gateway \
   -v envoy-models-b:/app/models \
   -v "$(pwd)/config-b.yaml:/app/config.yaml" \
   vllm-sr
@@ -49,6 +48,7 @@ sed "s/__PEER_IP__/$PEER_IP/g" envoy-b-twohost.yaml > envoy-b.yaml
 echo "Starting Envoy B..."
 docker run --rm --name envoy-b -d \
   --network envoy-net \
+  --add-host=host.docker.internal:host-gateway \
   -v "$(pwd)/envoy-b.yaml:/etc/envoy/envoy.yaml" \
   -p 10001:10001 \
   envoyproxy/envoy:v1.30-latest \
