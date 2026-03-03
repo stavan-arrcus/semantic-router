@@ -46,9 +46,9 @@ static_resources:
                                 exact_match: "local/tinyllama"
                           route: { cluster: local_tinyllama }
 
-                        # 3. Default -> mock target
+                        # 3. Default -> TinyLlama fallback
                         - match: { prefix: "/" }
-                          route: { cluster: target_cluster }
+                          route: { cluster: local_tinyllama }
                 http_filters:
                   # ExtProc 1: vLLM-SR (semantic router)
                   - name: envoy.filters.http.ext_proc
@@ -144,14 +144,3 @@ static_resources:
                   address:
                     socket_address: { address: __PEER_IP__, port_value: 10001 }
 
-    - name: target_cluster
-      type: STRICT_DNS
-      lb_policy: ROUND_ROBIN
-      dns_lookup_family: V4_ONLY
-      load_assignment:
-        cluster_name: target_cluster
-        endpoints:
-          - lb_endpoints:
-              - endpoint:
-                  address:
-                    socket_address: { address: mock-target, port_value: 8888 }

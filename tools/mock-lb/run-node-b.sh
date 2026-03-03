@@ -17,7 +17,7 @@ fi
 
 cleanup() {
   echo "Stopping Node B containers..."
-  docker stop envoy-b extproc-b vllm-sr-b mock-target qwen-b tinyllama-b 2>/dev/null || true
+  docker stop envoy-b extproc-b vllm-sr-b qwen-b tinyllama-b 2>/dev/null || true
   docker network rm envoy-net 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -27,9 +27,6 @@ docker network create envoy-net 2>/dev/null || true
 
 echo "Building mock-lb..."
 docker build -t mock-lb -q .
-
-echo "Starting Node B default target..."
-docker run --rm --name mock-target  -d --network envoy-net mock-lb -target -target-port 8888 -target-name default-b
 
 echo "Starting Qwen Mock Target..."
 docker run --rm --name qwen-b -d --network envoy-net mock-lb -target -target-port 8000 -target-name qwen-b
