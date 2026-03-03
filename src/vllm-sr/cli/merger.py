@@ -353,13 +353,6 @@ def merge_configs(user_config: UserConfig, defaults: Dict[str, Any]) -> Dict[str
                 f"  Added {len(user_config.signals.preferences)} preference signals"
             )
 
-        # Merge plugin overrides
-        for plugin in ["semantic_cache", "feedback_detector", "hallucination_mitigation", "prompt_guard"]:
-            val = getattr(user_config.signals, plugin)
-            if val is not None:
-                merged[plugin] = val
-                log.info(f"  Overrode {plugin} with user configuration")
-
         # Translate domains to categories
         if user_config.signals.domains:
             merged["categories"] = translate_domains_to_categories(
@@ -385,6 +378,21 @@ def merge_configs(user_config: UserConfig, defaults: Dict[str, Any]) -> Dict[str
     if user_config.mom_registry is not None:
         merged["mom_registry"] = user_config.mom_registry
         log.info(f"  Overrode mom_registry with user configuration")
+
+    # Merge plugin and additional overrides from top-level UserConfig
+    plugin_fields = [
+        "semantic_cache",
+        "feedback_detector",
+        "hallucination_mitigation",
+        "prompt_guard",
+        "embedding_models",
+        "looper",
+    ]
+    for field in plugin_fields:
+        val = getattr(user_config, field)
+        if val is not None:
+            merged[field] = val
+            log.info(f"  Overrode {field} with user configuration")
 
     # Add decisions (convert to dict)
     merged["decisions"] = [decision.model_dump() for decision in user_config.decisions]
