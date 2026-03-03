@@ -397,8 +397,14 @@ def merge_configs(user_config: UserConfig, defaults: Dict[str, Any]) -> Dict[str
     for field in plugin_fields:
         val = getattr(user_config, field)
         if val is not None:
-            merged[field] = val
             log.info(f"  Overrode {field} with user configuration")
+            if field in merged and isinstance(merged[field], dict) and isinstance(val, dict):
+                # Deep merge for dictionaries
+                for k, v in val.items():
+                    merged[field][k] = v
+            else:
+                # Direct replacement
+                merged[field] = val
 
     # Add decisions (convert to dict)
     merged["decisions"] = [decision.model_dump() for decision in user_config.decisions]
