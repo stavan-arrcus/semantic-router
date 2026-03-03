@@ -30,6 +30,9 @@ classifier:
   pii_model:
     threshold: 1.0  # Effectiveness disabled
     model_id: ""    # Prevent extraction
+  jailbreak_classifier:
+    threshold: 1.0
+    model_id: ""
 embedding_models:
   qwen3_model_path: ""
   gemma_model_path: ""
