@@ -26,6 +26,13 @@ feedback_detector:
   enabled: false
 hallucination_mitigation:
   enabled: false
+classifier:
+  pii_model:
+    threshold: 1.0  # Effectiveness disabled
+    model_id: ""    # Prevent extraction
+embedding_models:
+  qwen3_model_path: ""
+  gemma_model_path: ""
 looper:
   enabled: false
 
