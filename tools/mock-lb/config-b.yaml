@@ -22,6 +22,7 @@ semantic_cache:
 # Keep safety/PII/hallucination disabled to save RAM
 prompt_guard:
   enabled: false
+  model_id: ""
 feedback_detector:
   enabled: false
   model_id: ""
