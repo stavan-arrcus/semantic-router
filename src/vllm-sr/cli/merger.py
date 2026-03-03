@@ -387,6 +387,12 @@ def merge_configs(user_config: UserConfig, defaults: Dict[str, Any]) -> Dict[str
         "prompt_guard",
         "embedding_models",
         "looper",
+        "classifier",
+        "bert_model",
+        "tools",
+        "hnsw_config",
+        "observability",
+        "response_api",
     ]
     for field in plugin_fields:
         val = getattr(user_config, field)

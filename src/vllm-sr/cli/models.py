@@ -250,6 +250,12 @@ class UserConfig(BaseModel):
     prompt_guard: Optional[Dict[str, Any]] = None
     embedding_models: Optional[Dict[str, Any]] = None
     looper: Optional[Dict[str, Any]] = None
+    classifier: Optional[Dict[str, Any]] = None
+    bert_model: Optional[Dict[str, Any]] = None
+    tools: Optional[Dict[str, Any]] = None
+    hnsw_config: Optional[Dict[str, Any]] = None
+    observability: Optional[Dict[str, Any]] = None
+    response_api: Optional[Dict[str, Any]] = None
 
     class Config:
         populate_by_name = True
