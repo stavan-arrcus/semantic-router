@@ -4,9 +4,7 @@ services:
   envoy:
     image: envoyproxy/envoy:v1.30-latest
     volumes:
-      - ./envoy-template.yaml:/etc/envoy/envoy.yaml:ro
-    environment:
-      - PEER_ADDRESS=${PEER_ADDRESS}
+      - ./${ENVOY_CONFIG}:/etc/envoy/envoy.yaml:ro
     ports:
       - "${HOST_PORT}:10000"
       - "${HEALTH_PORT}:8080"
@@ -25,21 +23,24 @@ services:
 
   mock-lb:
     build: .
+    image: mock-lb:local
     command: [ "-port", "9000" ]
     networks:
       router-net:
         aliases: [ mock-lb ]
 
   target-qwen:
-    image: mock-lb
+    image: mock-lb:local
     command: [ "-target", "-target-port", "8000", "-target-name", "qwen-${NODE_ID}" ]
+    depends_on: [ mock-lb ]
     networks:
       router-net:
         aliases: [ target-qwen ]
 
   target-tinyllama:
-    image: mock-lb
+    image: mock-lb:local
     command: [ "-target", "-target-port", "8001", "-target-name", "tinyllama-${NODE_ID}" ]
+    depends_on: [ mock-lb ]
     networks:
       router-net:
         aliases: [ target-tinyllama ]
