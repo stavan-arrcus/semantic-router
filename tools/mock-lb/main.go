@@ -24,12 +24,12 @@ var (
 	requestCount sync.Map
 
 	// Flags
-	port            = flag.Int("port", 9000, "gRPC server port")
-	maxQueries      = flag.Int("max-queries", 3, "Max concurrent queries before rerouting (concurrency mode)")
-	rerouteEveryN   = flag.Int("reroute-every", 4, "Reroute every Nth request (count mode); 0 = use concurrency mode")
-	targetMode      = flag.Bool("target", false, "Run as the mock target HTTP server instead of ExtProc")
-	targetPort      = flag.Int("target-port", 8888, "Port for the mock target server")
-	targetName      = flag.String("target-name", "Mock Target", "Name to return in response body (e.g. qwen-a, qwen-b)")
+	port          = flag.Int("port", 9000, "gRPC server port")
+	maxQueries    = flag.Int("max-queries", 3, "Max concurrent queries before rerouting (concurrency mode)")
+	rerouteEveryN = flag.Int("reroute-every", 4, "Reroute every Nth request (count mode); 0 = use concurrency mode")
+	targetMode    = flag.Bool("target", false, "Run as the mock target HTTP server instead of ExtProc")
+	targetPort    = flag.Int("target-port", 8888, "Port for the mock target server")
+	targetName    = flag.String("target-name", "Mock Target", "Name to return in response body (e.g. qwen-a, qwen-b)")
 )
 
 type server struct{}
@@ -199,6 +199,33 @@ func main() {
 		runTargetServer()
 		return
 	}
+
+	// Health check endpoint for Envoy to monitor concurrency
+	go func() {
+		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			// Check if ANY model is busy (for simplicity in the demo)
+			isBusy := false
+			activeQueries.Range(func(key, value interface{}) bool {
+				if atomic.LoadInt64(value.(*int64)) >= int64(*maxQueries) {
+					isBusy = true
+					return false
+				}
+				return true
+			})
+
+			if isBusy {
+				w.WriteHeader(http.StatusServiceUnavailable) // 503
+				w.Write([]byte("BUSY\n"))
+			} else {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("OK\n"))
+			}
+		})
+		log.Printf("Health check server listening on :8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			log.Printf("Health check server failed: %v", err)
+		}
+	}()
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {

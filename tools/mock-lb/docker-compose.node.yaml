@@ -1,0 +1,52 @@
+# Standardized Node Stack
+# Use with unique project names (docker-compose -p node-a -f docker-compose.node.yaml up)
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.30-latest
+    volumes:
+      - ./envoy-template.yaml:/etc/envoy/envoy.yaml:ro
+    environment:
+      - PEER_ADDRESS=${PEER_ADDRESS}
+    ports:
+      - "${HOST_PORT}:10000"
+      - "${HEALTH_PORT}:8080"
+    command: [ "-c", "/etc/envoy/envoy.yaml" ]
+    depends_on: [ vllm-sr, mock-lb ]
+    networks: [ router-net ]
+
+  vllm-sr:
+    image: vllm-sr
+    volumes:
+      - ./config-${NODE_ID}.yaml:/app/config.yaml:ro
+      - models-cache:/app/models
+    networks:
+      router-net:
+        aliases: [ vllm-sr ]
+
+  mock-lb:
+    build: .
+    command: [ "-port", "9000" ]
+    networks:
+      router-net:
+        aliases: [ mock-lb ]
+
+  target-qwen:
+    image: mock-lb
+    command: [ "-target", "-target-port", "8000", "-target-name", "qwen-${NODE_ID}" ]
+    networks:
+      router-net:
+        aliases: [ target-qwen ]
+
+  target-tinyllama:
+    image: mock-lb
+    command: [ "-target", "-target-port", "8001", "-target-name", "tinyllama-${NODE_ID}" ]
+    networks:
+      router-net:
+        aliases: [ target-tinyllama ]
+
+networks:
+  router-net:
+    driver: bridge
+
+volumes:
+  models-cache:
