@@ -46,16 +46,15 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/dashboard-backend
 FROM golang:1.24 AS go-builder
 WORKDIR /build
 
-# Copy candle-binding library for CGO linking
-COPY --from=rust-builder /build/target/release/libcandle_semantic_router.so /usr/local/lib/
-COPY --from=rust-builder /build/target/release/libcandle_semantic_router.a /usr/local/lib/
-ENV LD_LIBRARY_PATH=/usr/local/lib
-
-# Copy candle-binding Go files (needed for go.mod replace directive)
-COPY --from=rust-builder /build/go.mod /build/semantic-router.go /build/../candle-binding/
+# Copy the entire candle-binding stage to /candle-binding
+# This ensures that the LDFLAGS path (-L${SRCDIR}/target/release) is valid
+COPY --from=rust-builder /build/ /candle-binding/
 
 # Copy Go source
 COPY src/semantic-router/ .
+
+# Ensure dependencies are downloaded
+RUN go mod download
 
 # Build router
 RUN CGO_ENABLED=1 go build -o router cmd/main.go
@@ -70,9 +69,9 @@ FROM python:3.12-slim
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        supervisor \
-        curl \
-        ca-certificates; \
+    supervisor \
+    curl \
+    ca-certificates; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
