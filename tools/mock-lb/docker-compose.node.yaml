@@ -3,6 +3,7 @@
 services:
   envoy:
     image: envoyproxy/envoy:v1.30-latest
+    container_name: envoy-${NODE_ID}
     volumes:
       - ./${ENVOY_CONFIG}:/etc/envoy/envoy.yaml:ro
     ports:
@@ -13,7 +14,9 @@ services:
     networks: [ router-net ]
 
   vllm-sr:
-    image: vllm-sr
+    image: vllm-sr:latest
+    container_name: vllm-sr-${NODE_ID}
+    pull_policy: never
     volumes:
       - ./config-${NODE_ID}.yaml:/app/config.yaml:ro
       - models-cache:/app/models
@@ -24,6 +27,8 @@ services:
   mock-lb:
     build: .
     image: mock-lb:local
+    container_name: mock-lb-${NODE_ID}
+    pull_policy: build
     command: [ "-port", "9000" ]
     networks:
       router-net:
@@ -31,6 +36,8 @@ services:
 
   target-qwen:
     image: mock-lb:local
+    container_name: target-qwen-${NODE_ID}
+    pull_policy: never
     command: [ "-target", "-target-port", "8000", "-target-name", "qwen-${NODE_ID}" ]
     depends_on: [ mock-lb ]
     networks:
@@ -39,6 +46,8 @@ services:
 
   target-tinyllama:
     image: mock-lb:local
+    container_name: target-tinyllama-${NODE_ID}
+    pull_policy: never
     command: [ "-target", "-target-port", "8001", "-target-name", "tinyllama-${NODE_ID}" ]
     depends_on: [ mock-lb ]
     networks:
