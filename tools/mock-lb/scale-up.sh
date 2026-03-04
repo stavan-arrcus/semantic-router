@@ -44,6 +44,6 @@ NODE_ID=$NODE_ID \
 HOST_PORT=$HOST_PORT \
 HEALTH_PORT=$HEALTH_PORT \
 ENVOY_CONFIG="envoy-$NODE_ID.yaml" \
-docker-compose -p "router-node-$NODE_ID" -f docker-compose.node.yaml up -d --build
+docker compose -p "router-node-$NODE_ID" -f docker-compose.node.yaml up -d --build
 
 echo "Node $NODE_ID is running at http://localhost:$HOST_PORT"
