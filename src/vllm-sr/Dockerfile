@@ -44,20 +44,25 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/dashboard-backend
 
 # Stage 2: Build Go semantic router
 FROM golang:1.24 AS go-builder
-WORKDIR /build
+WORKDIR /app
 
-# Copy the entire candle-binding stage to /candle-binding
-# This ensures that the LDFLAGS path (-L${SRCDIR}/target/release) is valid
-COPY --from=rust-builder /build/ /candle-binding/
+# Install build tools for CGO
+RUN apt-get update && apt-get install -y build-essential pkg-config && rm -rf /var/lib/apt/lists/*
 
-# Copy Go source
-COPY src/semantic-router/ .
+# Copy the entire candle-binding stage to mirror the host structure
+# This allows 'replace ... => ../../candle-binding' to work perfectly
+COPY --from=rust-builder /build/ /app/candle-binding/
+
+# Copy Go source into the correct relative path
+COPY src/semantic-router/ /app/src/semantic-router/
+WORKDIR /app/src/semantic-router
 
 # Ensure dependencies are downloaded
+ENV GOPROXY=https://proxy.golang.org,direct
 RUN go mod download
 
 # Build router
-RUN CGO_ENABLED=1 go build -o router cmd/main.go
+RUN CGO_ENABLED=1 go build -o /app/router cmd/main.go
 
 # Stage 3: Get Envoy binary
 FROM envoyproxy/envoy:v1.34-latest AS envoy
@@ -76,7 +81,7 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 # Copy binaries from builders
-COPY --from=go-builder /build/router /usr/local/bin/router
+COPY --from=go-builder /app/router /usr/local/bin/router
 COPY --from=rust-builder /build/target/release/libcandle_semantic_router.so /usr/local/lib/
 COPY --from=envoy /usr/local/bin/envoy /usr/local/bin/envoy
 COPY --from=dashboard-builder /app/dashboard-backend /usr/local/bin/dashboard-backend
