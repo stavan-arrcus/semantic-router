@@ -100,7 +100,7 @@ providers:
       endpoints:
         - name: "qwen_backend"
           weight: 1
-          endpoint: "qwen-a:8000" # Updated to internal container
+          endpoint: "target-qwen:8000" # Internal container alias
           protocol: "http"
       access_key: "dummy"
     - name: "local/tinyllama"
@@ -108,7 +108,7 @@ providers:
       endpoints:
         - name: "tinyllama_backend"
           weight: 1
-          endpoint: "tinyllama-a:8001" # Updated to internal container
+          endpoint: "target-tinyllama:8001" # Internal container alias
           protocol: "http"
       access_key: "dummy"
   default_model: "local/tinyllama"
