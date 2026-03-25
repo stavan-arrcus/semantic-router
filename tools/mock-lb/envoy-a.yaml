@@ -155,7 +155,12 @@ static_resources:
         cluster_name: peer_cluster
         endpoints:
           - lb_endpoints:
-${PEER_ENDPOINTS}
+              - endpoint:
+                  address:
+                    socket_address: { address: 192.168.64.4, port_value: 10000 }
+              - endpoint:
+                  address:
+                    socket_address: { address: 192.168.64.8, port_value: 10000 }
       health_checks:
         - timeout: 1s
           interval: 2s
@@ -163,3 +168,4 @@ ${PEER_ENDPOINTS}
           healthy_threshold: 2
           http_health_check:
             path: "/health"
+

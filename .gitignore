@@ -30,6 +30,7 @@ build/
 *.test
 *.out
 extproc-server
+tools/mock-lb/mock-lb
 
 # IDE
 .idea/

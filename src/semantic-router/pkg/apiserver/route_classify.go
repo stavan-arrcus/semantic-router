@@ -260,6 +260,16 @@ func (s *ClassificationAPIServer) extractRequestedResults(unifiedResults *servic
 	return results
 }
 
+func (s *ClassificationAPIServer) handleClassificationMetrics(w http.ResponseWriter, _ *http.Request) {
+	if s.classificationSvc == nil {
+		s.writeErrorResponse(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "Classification service not initialized")
+		return
+	}
+
+	stats := s.classificationSvc.GetUnifiedClassifierStats()
+	s.writeJSONResponse(w, http.StatusOK, stats)
+}
+
 // validateTaskType validates the task_type parameter for batch classification
 // Returns an error if the task_type is invalid, nil if valid or empty
 func validateTaskType(taskType string) error {

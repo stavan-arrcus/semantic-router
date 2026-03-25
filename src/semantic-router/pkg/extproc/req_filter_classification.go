@@ -99,6 +99,14 @@ func (r *OpenAIRouter) performDecisionEvaluation(originalModel string, userConte
 			categoryName = strings.TrimPrefix(rule, "domain:")
 			break
 		}
+		if categoryName == "" && strings.HasPrefix(rule, "keyword:") {
+			categoryName = strings.TrimPrefix(rule, "keyword:")
+			// Keep looking in case a domain rule matches later
+		}
+	}
+	// Fallback to decision name if still empty
+	if categoryName == "" && result.Decision != nil {
+		categoryName = result.Decision.Name
 	}
 	// Store category in context for response headers
 	ctx.VSRSelectedCategory = categoryName
