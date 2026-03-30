@@ -27,12 +27,23 @@ func (mp *ModelPaths) IsComplete() bool {
 	return mp.HasLoRAModels() || mp.HasLegacyModels()
 }
 
-// HasLoRAModels checks if LoRA models are available
+// HasLoRAModels checks if LoRA models are available.
+// Only the intent classifier is required; PII and security are optional.
+// When PII or security paths are absent, the intent model path is used as a fallback
+// so the unified C initializer always receives valid paths.
 func (mp *ModelPaths) HasLoRAModels() bool {
-	return mp.LoRAIntentClassifier != "" &&
-		mp.LoRAPIIClassifier != "" &&
-		mp.LoRASecurityClassifier != "" &&
-		mp.LoRAArchitecture != ""
+	if mp.LoRAIntentClassifier == "" || mp.LoRAArchitecture == "" {
+		return false
+	}
+	// Fill in optional classifiers with the intent path so downstream
+	// C init calls never receive empty strings.
+	if mp.LoRAPIIClassifier == "" {
+		mp.LoRAPIIClassifier = mp.LoRAIntentClassifier
+	}
+	if mp.LoRASecurityClassifier == "" {
+		mp.LoRASecurityClassifier = mp.LoRAIntentClassifier
+	}
+	return true
 }
 
 // HasLegacyModels checks if legacy ModernBERT models are available

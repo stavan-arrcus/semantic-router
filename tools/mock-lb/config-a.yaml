@@ -55,23 +55,23 @@ signals:
   keywords:
     - name: "math_keywords"
       operator: "OR"
-      keywords: ["calculate", "equation", "integral", "sum", "math"]
+      keywords: ["calculate", "equation", "integral", "sum", "math", "solve", "derivative", "multiply", "divide", "algebra", "calculus", "arithmetic", "factor", "theorem", "formula"]
       case_sensitive: false
     - name: "code_keywords"
       operator: "OR"
-      keywords: ["function", "class", "python", "code", "debug"]
+      keywords: ["function", "class", "python", "code", "debug", "algorithm", "script", "bash", "process", "thread", "implement", "programming", "software", "variable", "array", "loop"]
       case_sensitive: false
     - name: "geography_keywords"
       operator: "OR"
-      keywords: ["capital", "continent", "mountain", "river", "country", "city"]
+      keywords: ["capital", "continent", "mountain", "river", "country", "city", "geography", "ocean", "island", "region", "population", "border", "lake", "longest", "largest"]
       case_sensitive: false
     - name: "history_keywords"
       operator: "OR"
-      keywords: ["war", "empire", "president", "king", "dynasty", "century"]
+      keywords: ["war", "empire", "president", "king", "dynasty", "century", "history", "ancient", "civilization", "revolution", "battle", "treaty", "historical", "founded", "ruled"]
       case_sensitive: false
     - name: "biology_keywords"
       operator: "OR"
-      keywords: ["cell", "dna", "species", "evolution", "organism", "protein"]
+      keywords: ["cell", "dna", "species", "evolution", "organism", "protein", "biology", "natural selection", "photosynthesis", "genetics", "mutation", "ecosystem", "gene", "bacteria", "virus"]
       case_sensitive: false
 
   # Domain signals trigger the mom-domain-classifier BERT model
