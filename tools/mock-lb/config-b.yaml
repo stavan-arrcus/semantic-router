@@ -76,6 +76,9 @@ signals:
 
   # Domain signals trigger the mom-domain-classifier BERT model
   domains:
+    - name: "math"
+      description: "Mathematics and quantitative reasoning"
+      mmlu_categories: ["math"]
     - name: "computer_science"
       description: "Code and CS queries"
       mmlu_categories: ["computer_science"]
@@ -98,18 +101,22 @@ decisions:
       conditions:
         - type: "keyword"
           name: "math_keywords"
+        - type: "domain"
+          name: "math"
     modelRefs:
       - model: "local/qwen"
         use_reasoning: true
 
   - name: "code_route"
-    description: "Route code queries to TinyLlama (keyword-only)"
+    description: "Route code queries to TinyLlama"
     priority: 100
     rules:
       operator: "OR"
       conditions:
         - type: "keyword"
           name: "code_keywords"
+        - type: "domain"
+          name: "computer_science"
     modelRefs:
       - model: "local/tinyllama"
         use_reasoning: false
