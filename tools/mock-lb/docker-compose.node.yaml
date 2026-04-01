@@ -21,6 +21,9 @@ services:
     volumes:
       - ./config-${NODE_ID}.yaml:/app/config.yaml:ro
       - models-cache:/app/models
+      - ../../models/mom-domain-classifier:/app/models/lora_intent_classifier_bert-base-uncased_model:ro
+      - ../../models/mom-pii-classifier:/app/models/lora_pii_detector_bert-base-uncased_model:ro
+      - ../../models/mom-jailbreak-classifier:/app/models/lora_jailbreak_classifier_bert-base-uncased_model:ro
     networks:
       router-net:
         aliases: [ vllm-sr ]

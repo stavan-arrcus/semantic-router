@@ -7,8 +7,6 @@ from datetime import datetime
 # Nodes to benchmark
 NODES = [
     {"name": "Node A", "url": "http://localhost:10000/v1/chat/completions"},
-    {"name": "Node B", "url": "http://192.168.64.4:10000/v1/chat/completions"},
-    {"name": "Node C", "url": "http://192.168.64.8:10000/v1/chat/completions"},
 ]
 
 # Test dataset: (Prompt, Expected Category)
@@ -90,13 +88,10 @@ def run_benchmark(requests_per_node=5):
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         futures = []
-        for _ in range(requests_per_node):
-            for node in NODES:
-                # Randomly pick from test data
-                import random
-                prompt, expected = random.choice(TEST_DATA)
+        for node in NODES:
+            for prompt, expected in TEST_DATA:
                 futures.append(executor.submit(send_request, node, prompt, expected))
-                time.sleep(5)  # SLOW DOWN: ensure no overlap
+                time.sleep(2)
         
         for future in concurrent.futures.as_completed(futures):
             results.append(future.result())

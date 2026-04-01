@@ -512,7 +512,7 @@ def main(model_name="minilm", num_epochs=3, batch_size=8):
     effective_batch_size = min(
         batch_size, 8
     )  # Smaller batches for better regularization
-    effective_epochs = min(num_epochs, 3)  # Prevent overfitting with fewer epochs
+    effective_epochs = num_epochs
 
     training_args_dict = {
         "output_dir": output_model_path,
@@ -569,11 +569,15 @@ def main(model_name="minilm", num_epochs=3, batch_size=8):
             f,
         )
 
+    # Move model to CPU for custom evaluation to avoid MPS placeholder issues
+    eval_device = "cpu"
+    model.to(eval_device)
+
     # Evaluate on validation set
     logger.info("Evaluating on validation set...")
     val_accuracy, val_report, val_conf_matrix, val_predictions = (
         evaluate_category_classifier(
-            model, tokenizer, val_texts, val_categories, idx_to_category, device
+            model, tokenizer, val_texts, val_categories, idx_to_category, eval_device
         )
     )
     logger.info(f"Validation accuracy: {val_accuracy:.4f}")
@@ -582,7 +586,7 @@ def main(model_name="minilm", num_epochs=3, batch_size=8):
     logger.info("Evaluating on test set...")
     test_accuracy, test_report, test_conf_matrix, test_predictions = (
         evaluate_category_classifier(
-            model, tokenizer, test_texts, test_categories, idx_to_category, device
+            model, tokenizer, test_texts, test_categories, idx_to_category, eval_device
         )
     )
     logger.info(f"Test accuracy: {test_accuracy:.4f}")
