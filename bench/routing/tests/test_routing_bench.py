@@ -1,8 +1,6 @@
 """Unit tests for routing_bench pure functions."""
 
 import json
-import os
-import tempfile
 
 import pytest
 
