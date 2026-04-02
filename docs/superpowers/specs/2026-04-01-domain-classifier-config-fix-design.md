@@ -1,12 +1,12 @@
-# Domain Classifier Config Fix — Design Spec
+# Domain Classifier Routing Fix — Design Spec
 
 **Date:** 2026-04-01
-**Branch:** fresh-vllm
+**Branch:** fresh-vllm (from main)
 **Status:** Approved
 
 ## Problem
 
-Domain classification is silently disabled on every request. The router's `IsCategoryEnabled()` check requires three conditions:
+Domain classification returns `domain=[]` on every request, so no decisions match and all traffic falls through to the default model. The router's `IsCategoryEnabled()` check requires three conditions:
 
 ```go
 func (c *Classifier) IsCategoryEnabled() bool {
@@ -16,35 +16,44 @@ func (c *Classifier) IsCategoryEnabled() bool {
 }
 ```
 
-`ModelID` is set in `config-a.yaml`, but `CategoryMappingPath` is never set. This causes the domain inference goroutine to never launch, resulting in `domain=[]` on every request and 0% classification accuracy.
+During debugging with a stripped-down custom config (`tools/mock-lb/config-a.yaml`), `category_mapping_path` was absent, causing `IsCategoryEnabled()` to return false and the domain inference goroutine to never launch.
 
-## Root Cause
+## Root Cause (Confirmed)
 
-`category_mapping_path` is a required top-level config field (`config.go:426`) that tells the router where to load the label→index mapping JSON at startup (`extproc/router.go:69`). It was omitted from `config-a.yaml`.
-
-## Fix
-
-Add `category_mapping_path` to `tools/mock-lb/config-a.yaml` under the `classifier` block:
+The custom `tools/mock-lb/config-a.yaml` used during experimentation was missing `category_mapping_path`. The main `config/config.yaml` already has it set correctly:
 
 ```yaml
 classifier:
   category_model:
-    model_id: "models/lora_intent_classifier_bert-base-uncased_model"
-  category_mapping_path: "models/lora_intent_classifier_bert-base-uncased_model/category_mapping.json"
+    model_id: "models/mom-domain-classifier"
+    threshold: 0.6
+    use_cpu: true
+    category_mapping_path: "models/mom-domain-classifier/category_mapping.json"
 ```
 
-The path resolves to the bind-mounted local model at `/app/models/lora_intent_classifier_bert-base-uncased_model/category_mapping.json` inside the container.
+## Deployment Setup
 
-## Scope
+This branch uses the standard deployment:
+- **Config:** `config/config.yaml` mounted at `/app/config/config.yaml`
+- **Models:** `models/` mounted at `/app/models/`
+- **Docker:** `deploy/docker-compose/docker-compose.yml`
+- **Image:** `ghcr.io/vllm-project/semantic-router/extproc:latest`
 
-- **File changed:** `tools/mock-lb/config-a.yaml`
-- **No code changes required**
-- **No rebuild required**
+## What Already Works
 
-## Verification
+- `category_mapping_path` — present in `config/config.yaml`
+- Domain-only decisions — all decisions use `type: "domain"` conditions (no keyword rules)
+- Model files — `models/mom-domain-classifier/` has `lora_config.json`, `model.safetensors`, `category_mapping.json`, tokenizer files
 
-After restarting the stack, the router logs should show:
-- `[Signal Computation] Domain signal evaluation completed in Xms`
-- `Signal evaluation results: domain=[math]` (or similar non-empty value)
+## Implementation Plan
 
-Running `python tools/benchmark_sr.py` should produce non-zero classification accuracy.
+1. Deploy with `deploy/docker-compose/docker-compose.yml`
+2. Verify classifier loads: check logs for `LoRA C bindings initialized successfully` and absence of `IsCategoryEnabled = false`
+3. Run benchmark (`tools/benchmark_sr.py`) configured for the standard stack port
+4. Confirm `domain=[<category>]` appears in router logs and accuracy > 0%
+
+## Success Criteria
+
+- Router logs show `[Signal Computation] Domain signal evaluation completed`
+- `Signal evaluation results: domain=[math]` (or similar non-empty)
+- `benchmark_sr.py` reports classification accuracy > 0%
