@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from typing import Any, Dict, List, Optional
 
 
@@ -119,6 +120,7 @@ def run_benchmark(
 
     for q in questions:
         prompt = format_question(q)
+        t0 = time.time()
         try:
             response = client.chat.completions.create(
                 model="auto",
@@ -128,6 +130,7 @@ def run_benchmark(
             got_model = response.model
         except Exception as exc:
             got_model = f"error:{exc}"
+        latency_ms = (time.time() - t0) * 1000
 
         got_backend = detect_backend(got_model, qwen_model, llama_model)
         correct = got_backend == q["expected_backend"]
@@ -139,6 +142,7 @@ def run_benchmark(
             "got": got_backend,
             "got_model": got_model,
             "correct": correct,
+            "latency_ms": latency_ms,
             "question": q["question"],
         }
         results.append(result)
@@ -162,33 +166,37 @@ def compute_summary(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         if r["correct"]:
             by_domain[d]["correct"] += 1
 
-    for stats in by_domain.values():
+    for d, stats in by_domain.items():
         stats["accuracy"] = stats["correct"] / stats["total"] if stats["total"] > 0 else 0.0
+        domain_results = [r for r in results if r["domain"] == d]
+        stats["avg_latency_ms"] = sum(r["latency_ms"] for r in domain_results) / len(domain_results)
 
     total = len(results)
     correct = sum(1 for r in results if r["correct"])
+    avg_latency_ms = sum(r["latency_ms"] for r in results) / total if total > 0 else 0.0
     return {
         "total": total,
         "correct": correct,
         "accuracy": correct / total if total > 0 else 0.0,
+        "avg_latency_ms": avg_latency_ms,
         "by_domain": by_domain,
     }
 
 
 def print_table(summary: Dict[str, Any]) -> None:
     """Print the routing accuracy table to stdout."""
-    sep = "─" * 56
-    print(f"\n{'Domain':<20} {'Expected':<10} {'Correct':<9} {'Total':<7} Accuracy")
+    sep = "─" * 72
+    print(f"\n{'Domain':<20} {'Expected':<10} {'Correct':<9} {'Total':<7} {'Accuracy':<12} Avg Latency")
     print(sep)
     for domain, stats in sorted(summary["by_domain"].items()):
         print(
             f"{domain:<20} {stats['expected']:<10} {stats['correct']:<9}"
-            f" {stats['total']:<7} {stats['accuracy'] * 100:.1f}%"
+            f" {stats['total']:<7} {stats['accuracy'] * 100:.1f}%{'':9} {stats['avg_latency_ms']:.0f}ms"
         )
     print(sep)
     print(
         f"{'OVERALL':<20} {'':<10} {summary['correct']:<9}"
-        f" {summary['total']:<7} {summary['accuracy'] * 100:.1f}%"
+        f" {summary['total']:<7} {summary['accuracy'] * 100:.1f}%{'':9} {summary['avg_latency_ms']:.0f}ms"
     )
     print()
 
@@ -222,6 +230,7 @@ def main() -> None:
                         "total": summary["total"],
                         "correct": summary["correct"],
                         "accuracy": summary["accuracy"],
+                        "avg_latency_ms": summary["avg_latency_ms"],
                     },
                     "by_domain": summary["by_domain"],
                     "misses": bench["misses"],

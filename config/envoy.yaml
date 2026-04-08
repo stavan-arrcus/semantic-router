@@ -106,7 +106,7 @@ static_resources:
             address:
               socket_address:
                 address: 127.0.0.1
-                port_value: 50051
+                port_value: 50052
 
   # Dynamic vLLM cluster using original destination
   - name: vllm_dynamic_cluster
