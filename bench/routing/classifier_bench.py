@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
-from sentence_transformers import SentenceTransformer
+from transformers import BertForSequenceClassification, BertTokenizer
 
 
 # Domains that route to qwen; everything else routes to llama (default)
@@ -73,30 +73,37 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_model(model_path: str) -> Tuple[SentenceTransformer, str]:
-    """Load the classifier model, auto-detecting device."""
+def load_model(model_path: str) -> Tuple[Any, Any, str]:
+    """Load the classifier model and tokenizer, auto-detecting device."""
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
     if device == "cuda":
         print(f"  GPU: {torch.cuda.get_device_name(0)}")
         print(f"  VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
-    model = SentenceTransformer(model_path, device=device)
-    return model, device
+    tokenizer = BertTokenizer.from_pretrained(model_path)
+    model = BertForSequenceClassification.from_pretrained(model_path, num_labels=14)
+    model.to(device)
+    model.eval()
+    return model, tokenizer, device
 
 
 def classify(
-    model: SentenceTransformer,
+    model: Any,
+    tokenizer: Any,
     idx_to_category: Dict[int, str],
     text: str,
     threshold: float,
+    device: str,
 ) -> Tuple[Optional[str], float]:
     """
     Classify text and return (category, confidence).
     Returns (None, confidence) if confidence is below threshold.
     """
-    logits = model.encode(text, show_progress_bar=False)
-    probs = torch.softmax(torch.tensor(logits), dim=0)
-    confidence, idx = torch.max(probs, dim=0)
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512).to(device)
+    with torch.no_grad():
+        logits = model(**inputs).logits
+    probs = torch.softmax(logits, dim=-1)
+    confidence, idx = torch.max(probs, dim=-1)
     confidence = confidence.item()
     if confidence < threshold:
         return None, confidence
@@ -130,13 +137,15 @@ def load_questions(data_path: str, samples_per_domain: Optional[int]) -> List[Di
 
 def classify_question(
     q: Dict[str, Any],
-    model: SentenceTransformer,
+    model: Any,
+    tokenizer: Any,
     idx_to_category: Dict[int, str],
     threshold: float,
+    device: str,
 ) -> Dict[str, Any]:
     """Classify a single question and return a result dict."""
     t0 = time.time()
-    domain, confidence = classify(model, idx_to_category, q["question"], threshold)
+    domain, confidence = classify(model, tokenizer, idx_to_category, q["question"], threshold, device)
     latency_ms = (time.time() - t0) * 1000
 
     got_backend = domain_to_backend(domain)
@@ -157,20 +166,22 @@ def classify_question(
 
 def run_benchmark(
     questions: List[Dict[str, Any]],
-    model: SentenceTransformer,
+    model: Any,
+    tokenizer: Any,
     idx_to_category: Dict[int, str],
     threshold: float,
+    device: str,
     concurrency: int = 1,
 ) -> Dict[str, Any]:
     wall_start = time.time()
 
     if concurrency == 1:
-        results = [classify_question(q, model, idx_to_category, threshold) for q in questions]
+        results = [classify_question(q, model, tokenizer, idx_to_category, threshold, device) for q in questions]
     else:
         results = [None] * len(questions)
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
             futures = {
-                executor.submit(classify_question, q, model, idx_to_category, threshold): i
+                executor.submit(classify_question, q, model, tokenizer, idx_to_category, threshold, device): i
                 for i, q in enumerate(questions)
             }
             for future in as_completed(futures):
@@ -255,12 +266,12 @@ def main() -> None:
     idx_to_category = {int(k): v for k, v in mapping["idx_to_category"].items()}
 
     print(f"Loading model from {model_path} ...")
-    model, device = load_model(model_path)
+    model, tokenizer, device = load_model(model_path)
 
     questions = load_questions(data_path, args.samples_per_domain)
     print(f"Loaded {len(questions)} questions\n")
 
-    bench = run_benchmark(questions, model, idx_to_category, args.threshold, args.concurrency)
+    bench = run_benchmark(questions, model, tokenizer, idx_to_category, args.threshold, device, args.concurrency)
     summary = compute_summary(bench["results"])
     print_table(summary, device, args.threshold, args.concurrency, bench["throughput_rps"], bench["wall_ms"])
 
